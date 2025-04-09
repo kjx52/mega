@@ -1,4 +1,4 @@
-use crate::manager::diff::add_and_del;
+use crate::manager::add::add_and_del;
 use crate::util::scorpio_config;
 use bytes::{Bytes, BytesMut};
 use ceres::protocol::smart::add_pkt_line_string;
@@ -16,6 +16,7 @@ use std::{fs, path::PathBuf, str::FromStr};
 use tokio::{fs::File, io::AsyncWriteExt};
 
 mod commit;
+pub mod add;
 pub mod diff;
 pub mod fetch;
 pub mod push;
@@ -193,6 +194,7 @@ impl ScorpioManager {
         // we will combine it with objects to form a new working directory.
         let modifypath = path.join("modifiedstore");
         let index_dbpath = modifypath.join("index.db");
+        let rm_dbpath = modifypath.join("removedfile.db");
         let upper_path = path.join("upper");
         let real_path = upper_path.join(&mono_path);
 
@@ -203,7 +205,11 @@ impl ScorpioManager {
             Ok(path) => match path.starts_with(upper_path) {
                 true => {
                     let index_db = sled::open(index_dbpath).unwrap();
-                    add_and_del(path, modifypath, &index_db)?;
+                    let rm_db = sled::open(rm_dbpath).unwrap();
+                    println!("\x1b[32m[START]\x1b[0m");
+                    info!("[START]");
+                    add_and_del(path, modifypath, &index_db, &rm_db)?;
+                    println!("\x1b[32m[OK]\x1b[0m");
                     Ok(())
                 }
                 false => {

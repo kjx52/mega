@@ -192,7 +192,7 @@ impl ScorpioManager {
 
         // Since index.db is the private space of the sled database,
         // we will combine it with objects to form a new working directory.
-        let modifypath = path.join("modifiedstore");
+        let modifypath = path.join("ModifiedStore");
         let index_dbpath = modifypath.join("index.db");
         let rm_dbpath = modifypath.join("removedfile.db");
         let upper_path = path.join("upper");

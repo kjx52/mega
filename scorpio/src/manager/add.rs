@@ -152,23 +152,21 @@ fn remove_old_record(
     batch: &mut sled::Batch,
     signed_paths: &HashSet<String>,
 ) -> sled::Result<()> {
-    db.iter()
-        .map(|result| match result {
-            Ok((path, _)) => {
-                let path_string = String::from_utf8_lossy(&path).to_string();
-                match signed_paths.contains(&path_string) {
-                    true => (),
-                    false => {
-                        println!("    [\x1b[33mDEBUG\x1b[0m] Remove {path_string}");
-                        batch.remove(path)
-                    },
+    db.iter().try_for_each(|result| match result {
+        Ok((path, _)) => {
+            let path_string = String::from_utf8_lossy(&path).to_string();
+            match signed_paths.contains(&path_string) {
+                true => (),
+                false => {
+                    println!("    [\x1b[33mDEBUG\x1b[0m] Remove {path_string}");
+                    batch.remove(path)
                 }
-
-                Ok(())
             }
-            Err(e) => Err(e),
-        })
-        .collect::<sled::Result<()>>()
+
+            Ok(())
+        }
+        Err(e) => Err(e),
+    })
 }
 
 /// Convert the binary tree into a Tree and TreeItem structure
@@ -183,15 +181,21 @@ fn flatten_tree_with_batch(
 
             for (name, child) in children {
                 let child_path = current_path.join(name);
-                println!("        [\x1b[33mDEBUG\x1b[0m] current_path = {}", current_path.display());
-                println!("        [\x1b[33mDEBUG\x1b[0m] child_path = {}", child_path.display());
+                println!(
+                    "        [\x1b[33mDEBUG\x1b[0m] current_path = {}",
+                    current_path.display()
+                );
+                println!(
+                    "        [\x1b[33mDEBUG\x1b[0m] child_path = {}",
+                    child_path.display()
+                );
 
                 match child {
                     TmpTree::Blob { hash, executable } => {
                         tree_items.push(TreeItem {
-                            mode: match executable {
-                                &true => TreeItemMode::BlobExecutable,
-                                &false => TreeItemMode::Blob,
+                            mode: match *executable {
+                                true => TreeItemMode::BlobExecutable,
+                                false => TreeItemMode::Blob,
                             },
                             id: *hash,
                             name: name.clone(),
@@ -218,7 +222,10 @@ fn flatten_tree_with_batch(
             let id = SHA1::from_type_and_data(ObjectType::Tree, &data);
             let tree = Tree { id, tree_items };
 
-            println!("        [\x1b[34mINFO\x1b[0m] Write {} to a batch", current_path.display());
+            println!(
+                "        [\x1b[34mINFO\x1b[0m] Write {} to a batch",
+                current_path.display()
+            );
             out_map.insert(current_path.to_path_buf(), tree);
 
             id
@@ -270,7 +277,7 @@ pub fn add_and_del(
 
     println!("\x1b[32m[PART1]\x1b[0m Build the HashMap");
     let root_node = build_hashmap_from_root_path(
-        &real_path.to_string_lossy().to_string(),
+        real_path.to_string_lossy().as_ref(),
         &work_dir,
         &mut rm_batch_space,
         &mut signed_paths,

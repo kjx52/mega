@@ -107,22 +107,21 @@ pub trait BlobFsStore {
     fn add_blob_to_hash(&self, hash: &str, blob: &[u8]) -> Result<()>;
     fn get_blob_by_hash(&self, hash: &str) -> Result<Vec<u8>>;
 }
+/// These functions is used to implement a storage
+/// method similar to the Git Blob structure in the
+/// PathBuf structure.
+///
+/// The PathBuf corresponding to this trait should
+/// be the directory where the "index.db" folder of
+/// the db is located.
+///
+/// At the same time, for a clear structure, this
+/// version will migrate the db to the "modifystore"
+/// folder.
+///
+/// Added WhiteOut file support to avoid some unexpected
+/// errors.
 impl BlobFsStore for PathBuf {
-    /// These functions is used to implement a storage
-    /// method similar to the Git Blob structure in the
-    /// PathBuf structure.
-    ///
-    /// The PathBuf corresponding to this trait should
-    /// be the directory where the "index.db" folder of
-    /// the db is located.
-    ///
-    /// At the same time, for a clear structure, this
-    /// version will migrate the db to the "modifystore"
-    /// folder.
-    ///
-    /// Added WhiteOut file support to avoid some unexpected
-    /// errors.
-
     /// Add a Blob Object into the folder by a hash.
     fn add_blob_to_hash(&self, hash: &str, blob: &[u8]) -> Result<()> {
         match hash.len() {
@@ -162,11 +161,11 @@ impl BlobFsStore for PathBuf {
 }
 
 pub trait ModifiedStore {
-    fn add(&self,path:PathBuf) -> Result<()>;
-    fn add_content(&self,path:PathBuf,content: &[u8]) -> Result<()>;// if the state of a file is deleted, content is None.
+    fn add(&self, path: PathBuf) -> Result<()>;
+    fn add_content(&self, path: PathBuf, content: &[u8]) -> Result<()>; // if the state of a file is deleted, content is None.
     fn state_list(&self) -> Result<Vec<PathBuf>>;
-    fn get_content(&self,path:PathBuf) -> Result<Vec<u8>>;
-    fn delete(&self,path:PathBuf) -> Result<bool>; // true for success, false for no this path.
+    fn get_content(&self, path: PathBuf) -> Result<Vec<u8>>;
+    fn delete(&self, path: PathBuf) -> Result<bool>; // true for success, false for no this path.
 }
 impl ModifiedStore for sled::Db {
     fn add(&self, path: PathBuf) -> Result<()> {
@@ -174,32 +173,36 @@ impl ModifiedStore for sled::Db {
         self.insert(key, b"")?;
         Ok(())
     }
-    
+
     fn add_content(&self, path: PathBuf, content: &[u8]) -> Result<()> {
         let key = path.to_str().unwrap();
         self.insert(key, content)?;
         Ok(())
     }
-    
+
     fn state_list(&self) -> Result<Vec<PathBuf>> {
         let mut paths = Vec::new();
         for item in self.iter() {
             let (key, _) = item?;
-            let key_str = std::str::from_utf8(&key).map_err(|_| std::io::Error::other("Invalid UTF8"))?;
+            let key_str =
+                std::str::from_utf8(&key).map_err(|_| std::io::Error::other("Invalid UTF8"))?;
             paths.push(PathBuf::from(key_str));
         }
         Ok(paths)
     }
-    
+
     fn get_content(&self, path: PathBuf) -> Result<Vec<u8>> {
         let key = path.to_str().unwrap();
         if let Some(content) = self.get(key)? {
             Ok(content.to_vec())
         } else {
-            Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Path not found"))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Path not found",
+            ))
         }
     }
-    
+
     fn delete(&self, path: PathBuf) -> Result<bool> {
         let key = path.to_str().unwrap();
         let removed = self.remove(key)?;

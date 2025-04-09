@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf, str::FromStr};
 use tokio::{fs::File, io::AsyncWriteExt};
 
-mod commit;
 pub mod add;
+mod commit;
 pub mod diff;
 pub mod fetch;
 pub mod push;
@@ -118,9 +118,8 @@ impl ScorpioManager {
     ) -> Result<(&WorkDir, PathBuf), Box<dyn std::error::Error>> {
         for works in self.works.iter() {
             // This allows for partial matches, e.g., if os_mono_path is a subdirectory of works.path
-            match PathBuf::from(mono_path).strip_prefix(&works.path) {
-                Ok(real_path) => return Ok((works, real_path.to_path_buf())),
-                Err(_) => (),
+            if let Ok(real_path) = PathBuf::from(mono_path).strip_prefix(&works.path) {
+                return Ok((works, real_path.to_path_buf()));
             }
         }
         Err(Box::from("WorkDir not found"))
@@ -192,7 +191,7 @@ impl ScorpioManager {
 
         // Since index.db is the private space of the sled database,
         // we will combine it with objects to form a new working directory.
-        let modifypath = path.join("ModifiedStore");
+        let modifypath = path.join("modifiedstore");
         let index_dbpath = modifypath.join("index.db");
         let rm_dbpath = modifypath.join("removedfile.db");
         let upper_path = path.join("upper");
@@ -207,7 +206,6 @@ impl ScorpioManager {
                     let index_db = sled::open(index_dbpath).unwrap();
                     let rm_db = sled::open(rm_dbpath).unwrap();
                     println!("\x1b[32m[START]\x1b[0m");
-                    info!("[START]");
                     add_and_del(path, modifypath, &index_db, &rm_db)?;
                     println!("\x1b[32m[OK]\x1b[0m");
                     Ok(())
